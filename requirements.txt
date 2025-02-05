@@ -1,6 +1,13 @@
 aiogram
 apscheduler
-speechrecognition
-google-api-python-client
-pillow
-requests
+SpeechRecognition
+dateparser
+
+# Для интеграции с Google Calendar (при необходимости)
+# google-api-python-client
+
+# Для работы с изображениями (при необходимости)
+# pillow
+
+# Для выполнения HTTP-запросов (при необходимости)
+# requests
