@@ -5,6 +5,7 @@ import tempfile
 import os
 import calendar
 import uuid
+
 from datetime import datetime, timedelta, date
 
 import dateparser
@@ -14,7 +15,7 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 # Замените на ваш токен
-API_TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+API_TOKEN = 7504092318:AAEiytgbg-iCpVDVGCv9wN0Z-uSv1WdzMC8
 
 # Инициализация бота, диспетчера и планировщика
 bot = Bot(token=API_TOKEN)
