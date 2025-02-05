@@ -1,0 +1,6 @@
+aiogram
+apscheduler
+speechrecognition
+google-api-python-client
+pillow
+requests
