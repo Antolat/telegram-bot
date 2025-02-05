@@ -5,17 +5,20 @@ import tempfile
 import os
 import calendar
 import uuid
+from dotenv import load_dotenv
+
+# Загружаем переменные из файла .env (если он есть)
+load_dotenv()
+
+# Устанавливаем токен бота (не рекомендуется хранить его открытым в коде)
+API_TOKEN = "7504092318:AAEiytgbg-iCpVDVGCv9wN0Z-uSv1WdzMC8"
 
 from datetime import datetime, timedelta, date
-
 import dateparser
 import speech_recognition as sr
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
-# Замените на ваш токен
-API_TOKEN = 7504092318:AAEiytgbg-iCpVDVGCv9wN0Z-uSv1WdzMC8
 
 # Инициализация бота, диспетчера и планировщика
 bot = Bot(token=API_TOKEN)
@@ -118,13 +121,12 @@ def generate_calendar(year: int, month: int):
 # -----------------------
 
 # Для пошагового создания события
-# Ключ – user_id, значение – словарь с ключами: step, date, title, category, recurrence, reminder, description
 event_creation_state = {}
 # Для редактирования события
 event_edit_state = {}
 # Для поиска событий
 search_state = {}
-# Для просмотра дня/недели (простой флаг хранения)
+# Для просмотра дня/недели (храним состояние в диспетчере)
 if not hasattr(dp, 'day_view_state'):
     dp.day_view_state = {}
 if not hasattr(dp, 'week_view_state'):
@@ -134,7 +136,7 @@ if not hasattr(dp, 'week_view_state'):
 # ОСНОВНОЕ МЕНЮ
 # -----------------------
 
-main_kb = ReplyKeyboardMarkup(resize_keyboard=True)
+main_kb = ReplyKeyboardMarkup(keyboard=[], resize_keyboard=True)
 main_kb.add(KeyboardButton("📅 Месяц"))
 main_kb.add(KeyboardButton("📅 День"), KeyboardButton("📅 Неделя"))
 main_kb.add(KeyboardButton("📁 Архив"))
@@ -195,11 +197,11 @@ async def day_selection(call: types.CallbackQuery):
             inline_kb.add(InlineKeyboardButton(f"🗑 Удалить {ev['title']}", callback_data=f"delete:{ev['id']}"))
     await call.message.edit_text(text, reply_markup=inline_kb)
 
-# Просмотр событий на выбранный день (текстовая команда "📅 День")
+# Просмотр событий на выбранный день (команда "📅 День")
 @dp.message_handler(lambda message: message.text == "📅 День")
 async def start_day_view(message: types.Message):
     dp.day_view_state[message.from_user.id] = True
-    await message.answer("Введите дату для просмотра (например, 'сегодня', 'завтра', или '2025-02-05'):")
+    await message.answer("Введите дату для просмотра (например, 'сегодня', 'завтра' или '2025-02-05'):")
 
 @dp.message_handler(lambda message: message.from_user.id in dp.day_view_state)
 async def day_view_input(message: types.Message):
@@ -219,11 +221,11 @@ async def day_view_input(message: types.Message):
     await message.answer(text)
     dp.day_view_state.pop(user_id, None)
 
-# Просмотр событий за неделю (текстовая команда "📅 Неделя")
+# Просмотр событий за неделю (команда "📅 Неделя")
 @dp.message_handler(lambda message: message.text == "📅 Неделя")
 async def week_view_handler(message: types.Message):
     dp.week_view_state[message.from_user.id] = True
-    await message.answer("Введите дату для определения недели (например, 'сегодня', 'завтра', или '2025-02-05'):")
+    await message.answer("Введите дату для определения недели (например, 'сегодня', 'завтра' или '2025-02-05'):")
 
 @dp.message_handler(lambda message: message.from_user.id in dp.week_view_state)
 async def week_view_input(message: types.Message):
@@ -266,10 +268,9 @@ async def archive_view_handler(message: types.Message):
     await message.answer(text)
 
 # -----------------------
-# СОЗДАНИЕ СОБЫТИЯ (Пошагово)
+# СОЗДАНИЕ СОБЫТИЯ (пошагово)
 # -----------------------
 
-# Если событие добавляется через кнопку календаря – дата уже известна
 @dp.callback_query_handler(lambda call: call.data.startswith("add:"))
 async def add_event_callback(call: types.CallbackQuery):
     _, date_str = call.data.split(":", 1)
@@ -277,14 +278,12 @@ async def add_event_callback(call: types.CallbackQuery):
     event_creation_state[user_id] = {"step": "title", "date": date_str}
     await call.message.answer("Введите название события:")
 
-# Запуск пошагового создания события через главное меню
 @dp.message_handler(lambda message: message.text == "➕ Добавить событие")
 async def start_event_creation(message: types.Message):
     user_id = message.from_user.id
     event_creation_state[user_id] = {"step": "date"}
     await message.answer("Введите дату и время события (например, 'завтра в 15:00'):")
 
-# Пошаговая обработка ввода для создания события
 @dp.message_handler(lambda message: message.from_user.id in event_creation_state)
 async def event_creation_handler(message: types.Message):
     user_id = message.from_user.id
@@ -328,7 +327,6 @@ async def event_creation_handler(message: types.Message):
         await message.answer("Введите описание события (опционально):")
     elif step == "description":
         state["description"] = message.text.strip()
-        # Выводим сводку и просим подтвердить
         summary = (
             f"Проверьте данные события:\nДата: {state['date']}\nНазвание: {state['title']}\n"
             f"Категория: {state.get('category','')}\nПовторение: {state.get('recurrence','none')}\n"
@@ -342,8 +340,6 @@ async def event_creation_handler(message: types.Message):
         state["step"] = "confirm"
         await message.answer(summary, reply_markup=inline_kb)
     elif step == "voice_modification":
-        # Если пользователь после голосового ввода решил изменить дату и название,
-        # ожидается формат: "дата|название"
         parts = message.text.split("|")
         if len(parts) != 2:
             await message.answer("Введите данные в формате 'дата|название':")
@@ -363,7 +359,6 @@ async def event_creation_handler(message: types.Message):
         )
         await message.answer(summary, reply_markup=inline_kb)
 
-# Подтверждение создания события (текстовый вариант)
 @dp.callback_query_handler(lambda call: call.data.startswith("event_confirm:"))
 async def event_confirm_callback(call: types.CallbackQuery):
     user_id = call.from_user.id
@@ -414,7 +409,7 @@ async def handle_voice(message: types.Message):
             state = {}
             if parsed_date:
                 state["date"] = parsed_date.isoformat()
-                state["title"] = text  # Используем полный текст как название
+                state["title"] = text  # Используем распознанный текст как название
                 state["step"] = "confirm_voice"
                 summary = (
                     f"Распознано:\nДата: {state['date']}\nНазвание: {state['title']}\n\n"
@@ -444,7 +439,6 @@ async def handle_voice(message: types.Message):
         logging.error(f"Ошибка обработки голосового сообщения: {e}")
         await message.answer("Произошла ошибка при обработке голосового сообщения.")
 
-# Подтверждение голосового ввода
 @dp.callback_query_handler(lambda call: call.data.startswith("voice_event_confirm:"))
 async def voice_event_confirm_callback(call: types.CallbackQuery):
     user_id = call.from_user.id
@@ -452,7 +446,6 @@ async def voice_event_confirm_callback(call: types.CallbackQuery):
     if response == "yes":
         state = event_creation_state.get(user_id)
         if state:
-            # Если голосовое событие подтверждено, переходим к вводу категории
             state["step"] = "category"
             await call.message.answer("Введите категорию события (или оставьте пустым):")
         else:
